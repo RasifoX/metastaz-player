@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Metastaz Player</title>
+<style>
+:root{--bg:#fff;--fg:#000;--line:#000}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--fg:#fff;--line:#fff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px}h1{font-size:34px;margin:8px 0 16px}
+video{width:100%;background:#000;border-radius:16px;max-height:70vh}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+input[type=text]{flex:1 1 260px;min-height:44px;padding:0 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);font-size:16px}
+button,label.b{min-height:44px;padding:0 18px;border-radius:12px;border:1.5px solid var(--line);background:var(--fg);color:var(--bg);font-size:16px;cursor:pointer;display:inline-flex;align-items:center}
+button.ghost{background:var(--bg);color:var(--fg)}
+ol{padding:0;list-style:none;margin:0}li{display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+li span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}li.on span{font-weight:700}
+small{opacity:.8}
+</style></head><body><main>
+<h1>Player</h1>
+<video id="v" controls playsinline></video>
+<div class="row">
+<input id="ad" type="text" placeholder="Başlık (isteğe bağlı)">
+<input id="u" type="text" placeholder="mp4 / webm adresi (https://...)">
+<button id="ekle">Listeye ekle</button>
+<label class="b">Dosya aç<input id="f" type="file" accept="video/*" multiple hidden></label>
+</div>
+<ol id="l"></ol>
+<p><small>Kısayollar: Boşluk oynat/duraklat · ← → 10 sn · N sonraki · F tam ekran · Xbox kolu: A oynat, LB/RB önceki/sonraki. Liste yalnız bu tarayıcıda saklanır, hiçbir yere gönderilmez.</small></p>
+</main><script>
+const v=document.getElementById('v'),L=document.getElementById('l');
+let liste=JSON.parse(localStorage.getItem('mp_liste')||'[]'),i=-1,yerel=[];
+const kaydet=()=>localStorage.setItem('mp_liste',JSON.stringify(liste));
+function ciz(){L.innerHTML='';liste.concat(yerel).forEach((o,k)=>{const li=document.createElement('li');if(k===i)li.className='on';
+const s=document.createElement('span');s.textContent=(k+1)+'. '+(o.ad||o.url);s.onclick=()=>oyna(k);li.appendChild(s);
+if(k<liste.length){const x=document.createElement('button');x.className='ghost';x.textContent='Sil';x.onclick=()=>{liste.splice(k,1);kaydet();if(i>=k)i--;ciz()};li.appendChild(x)}
+L.appendChild(li)})}
+function hepsi(){return liste.concat(yerel)}
+function oyna(k){const h=hepsi();if(!h[k])return;i=k;v.src=h[k].url;v.play().catch(()=>{});
+const kon=localStorage.getItem('mp_t_'+h[k].url);if(kon)v.currentTime=+kon;ciz()}
+v.ontimeupdate=()=>{const h=hepsi();if(h[i]&&!h[i].yerel)localStorage.setItem('mp_t_'+h[i].url,v.currentTime|0)};
+v.onended=()=>{const h=hepsi();if(h[i])localStorage.removeItem('mp_t_'+h[i].url);oyna(i+1)};
+document.getElementById('ekle').onclick=()=>{const u=document.getElementById('u').value.trim();if(!/^https?:\/\//.test(u))return alert('Adres https:// ile başlamalı');
+liste.push({url:u,ad:document.getElementById('ad').value.trim()});kaydet();document.getElementById('u').value='';document.getElementById('ad').value='';ciz();if(i<0)oyna(liste.length-1)};
+document.getElementById('f').onchange=e=>{for(const f of e.target.files)yerel.push({url:URL.createObjectURL(f),ad:f.name,yerel:1});ciz();if(i<0)oyna(liste.length)};
+document.onkeydown=e=>{if(e.target.tagName==='INPUT')return;if(e.key===' '){e.preventDefault();v.paused?v.play():v.pause()}
+if(e.key==='ArrowRight')v.currentTime+=10;if(e.key==='ArrowLeft')v.currentTime-=10;if(e.key==='n')oyna(i+1);if(e.key==='f')v.requestFullscreen()};
+let once={};(function kol(){const g=navigator.getGamepads&&navigator.getGamepads()[0];if(g){const b=n=>g.buttons[n]&&g.buttons[n].pressed;
+[[0,()=>v.paused?v.play():v.pause()],[4,()=>oyna(i-1)],[5,()=>oyna(i+1)]].forEach(([n,f])=>{if(b(n)&&!once[n])f();once[n]=b(n)})}requestAnimationFrame(kol)})();
+ciz();
+</script></body></html>
